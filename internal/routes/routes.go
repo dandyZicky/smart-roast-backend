@@ -15,6 +15,8 @@ func NewRouter(db *sql.DB) *httprouter.Router {
 		user.GetUsers(w, r, p, db)
 	})
 
-	r.GET("/user/:name", user.GetUser)
+	r.POST("/user", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		user.CreateUser(w, r, p, db)
+	})
 	return r
 }

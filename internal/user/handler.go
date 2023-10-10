@@ -10,7 +10,7 @@ import (
 )
 
 func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *sql.DB) {
-	rows, err := db.Query("SELECT * FROM mock_user")
+	rows, err := db.Query("SELECT id, name, email FROM mock_user_v2")
 	if err != nil {
 		panic("Query failed")
 	}
@@ -42,13 +42,58 @@ func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *s
 	fmt.Fprintf(w, "%s", string(jsonResult))
 }
 
-func GetUser(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	name := p.ByName("name")
-	fmt.Fprint(w, name)
+func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db *sql.DB) {
+	var u RegisteredUser
+
+	err := json.NewDecoder(r.Body).Decode(&u)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	row := db.QueryRow("SELECT email FROM mock_user_v2 WHERE email = $1", u.Email)
+
+	var email string
+
+	err = row.Scan(&email)
+
+	if err == nil {
+		http.Error(w, "Email already exist", 400)
+		return
+	}
+
+	// Temporary
+	u.Password = "h986h8679#$#F@$vyrtuvV$"
+	u.Salt = "C$^^V$7gy645y6f44#Y"
+
+	jsonResult, err := json.Marshal(u)
+
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+	}
+
+	insertQuery := `
+  INSERT INTO mock_user_v2 (name, email, password, salt) 
+  VALUES ($1, $2, $3, $4)`
+
+	_, e := db.Exec(insertQuery, u.Name, u.Email, u.Password, u.Salt)
+
+	if e != nil {
+		http.Error(w, e.Error(), 400)
+		return
+	}
+
+	fmt.Fprintf(w, string(jsonResult))
 }
 
 type User struct {
 	ID    uint16 `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+type RegisteredUser struct {
+	User
+	Password string `json:"password"`
+	Salt     string `json:"salt"`
 }
