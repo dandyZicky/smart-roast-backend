@@ -10,7 +10,7 @@ import (
 )
 
 func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *sql.DB) {
-	rows, err := db.Query("SELECT id, name, email FROM mock_user_v2")
+	rows, err := db.Query("SELECT name, email FROM mock_user_v2")
 	if err != nil {
 		panic("Query failed")
 	}
@@ -20,7 +20,7 @@ func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *s
 
 	for rows.Next() {
 		var each = User{}
-		var err = rows.Scan(&each.ID, &each.Name, &each.Email)
+		var err = rows.Scan(&each.Name, &each.Email)
 
 		if err != nil {
 			panic(err.Error())
@@ -63,8 +63,8 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 	}
 
 	// Temporary
-	u.Password = "h986h8679#$#F@$vyrtuvV$"
 	u.Salt = "C$^^V$7gy645y6f44#Y"
+	u.Password += u.Salt
 
 	jsonResult, err := json.Marshal(u)
 
@@ -87,13 +87,13 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 }
 
 type User struct {
-	ID    uint16 `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type RegisteredUser struct {
+	ID uint16 `json:"id"`
 	User
-	Password string `json:"password"`
-	Salt     string `json:"salt"`
+	Salt string `json:"salt"`
 }
