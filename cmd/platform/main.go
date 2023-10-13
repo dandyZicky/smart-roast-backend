@@ -14,13 +14,12 @@ func main() {
 	addr := fmt.Sprintf("%s:%d", h, p)
 
 	cs := "user=postgres dbname=test password=;"
-
 	db, err := db.Db(&cs)
-	defer db.Close()
 
 	if err != nil {
 		panic(err.Error())
 	}
+	defer db.Close()
 
 	r := routes.NewRouter(db)
 
@@ -28,6 +27,6 @@ func main() {
 	e := http.ListenAndServe(addr, r)
 
 	if e != nil {
-		panic(fmt.Sprintf("Invalid address: %s", e))
+		panic(err.Error())
 	}
 }
