@@ -41,7 +41,8 @@ func NewRoastSession(
 
 	topic := fmt.Sprintf("tes_deh/benar/%s", rs)
 
-	sub := client.Subscribe(topic, 1, roastCb(db, &rs, w)).Wait()
+	var mqttWait bool = true
+	sub := client.Subscribe(topic, 1, roastCb(db, &rs, w, &mqttWait)).Wait()
 	if !sub {
 		http.Error(w, "can not subscribe", 400)
 		return
@@ -50,8 +51,8 @@ func NewRoastSession(
 	fmt.Fprint(w, "{message: `init connection`}")
 	w.(http.Flusher).Flush()
 
-	for client.IsConnected() {
-		time.Sleep(time.Microsecond)
+	for mqttWait {
+		time.Sleep(time.Millisecond)
 	}
 
 	fmt.Fprintln(w, "Session complete")
@@ -61,11 +62,12 @@ func NewRoastSession(
 	// w.(http.Flusher).Flush()
 }
 
-func roastCb(db *sql.DB, rs *string, w http.ResponseWriter) mqtt.MessageHandler {
+func roastCb(db *sql.DB, rs *string, w http.ResponseWriter, state *bool) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		msg := fmt.Sprintf("%s", m.Payload())
 		if msg == "-1" {
 			_, e := db.Exec("DELETE FROM active_session WHERE id = $1", *rs)
+			*state = false
 
 			if e != nil {
 				fmt.Printf("Error occured: %s", e.Error())
@@ -74,7 +76,7 @@ func roastCb(db *sql.DB, rs *string, w http.ResponseWriter) mqtt.MessageHandler 
 			c.Disconnect(1000)
 			return
 		}
-		fmt.Fprintf(w, "%s", m.Payload())
+		fmt.Fprintf(w, `{"suhu": %s}`, m.Payload())
 		w.(http.Flusher).Flush()
 	}
 }
