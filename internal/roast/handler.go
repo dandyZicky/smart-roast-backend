@@ -58,8 +58,6 @@ func NewRoastSession(
 	fmt.Fprintln(w, "Session complete")
 	db.Exec("DELETE FROM active_session WHERE id = $1", rs)
 	return
-	// fmt.Fprint(w, "Roasting session created")
-	// w.(http.Flusher).Flush()
 }
 
 func roastCb(db *sql.DB, rs *string, w http.ResponseWriter, state *bool) mqtt.MessageHandler {
