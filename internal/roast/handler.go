@@ -9,7 +9,12 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-func NewRoastSession(rs string, w *http.ResponseWriter, db *sql.DB) {
+func NewRoastSession(
+	rs string,
+	w http.ResponseWriter,
+	r *http.Request,
+	db *sql.DB,
+) {
 	// check if there is already a session,
 	var sessionState Session
 	row := db.QueryRow("SELECT id, state FROM active_session WHERE id = $1", rs)
@@ -17,7 +22,7 @@ func NewRoastSession(rs string, w *http.ResponseWriter, db *sql.DB) {
 	row.Scan(&sessionState.Id, &sessionState.State)
 
 	if (fmt.Sprintf("%d", sessionState.Id) == rs) && (sessionState.State == 1) {
-		http.Error(*w, "session already started", 400)
+		http.Error(w, "session already started", 400)
 		return
 	}
 
@@ -30,28 +35,33 @@ func NewRoastSession(rs string, w *http.ResponseWriter, db *sql.DB) {
 
 	con := client.Connect().Wait()
 	if !con {
-		fmt.Fprint(*w, "connection failed to broker")
+		fmt.Fprint(w, "connection failed to broker")
 		return
 	}
 
 	topic := fmt.Sprintf("tes_deh/benar/%s", rs)
 
-	go func() {
-		sub := client.Subscribe(topic, 1, roastCb(db, &rs)).Wait()
-		if !sub {
-			fmt.Fprint(*w, "can not subscribe")
-			return
-		}
+	sub := client.Subscribe(topic, 1, roastCb(db, &rs, w)).Wait()
+	if !sub {
+		http.Error(w, "can not subscribe", 400)
+		return
+	}
 
-		for client.IsConnected() {
-			time.Sleep(time.Millisecond)
-		}
-	}()
+	fmt.Fprint(w, "{message: `init connection`}")
+	w.(http.Flusher).Flush()
 
-	fmt.Fprint(*w, "Roasting session created")
+	for client.IsConnected() {
+		time.Sleep(time.Microsecond)
+	}
+
+	fmt.Fprintln(w, "Session complete")
+	db.Exec("DELETE FROM active_session WHERE id = $1", rs)
+	return
+	// fmt.Fprint(w, "Roasting session created")
+	// w.(http.Flusher).Flush()
 }
 
-func roastCb(db *sql.DB, rs *string) mqtt.MessageHandler {
+func roastCb(db *sql.DB, rs *string, w http.ResponseWriter) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		msg := fmt.Sprintf("%s", m.Payload())
 		if msg == "-1" {
@@ -64,7 +74,8 @@ func roastCb(db *sql.DB, rs *string) mqtt.MessageHandler {
 			c.Disconnect(1000)
 			return
 		}
-		fmt.Printf("Received message: %s from topic: %s\n", m.Payload(), m.Topic())
+		fmt.Fprintf(w, "%s", m.Payload())
+		w.(http.Flusher).Flush()
 	}
 }
 

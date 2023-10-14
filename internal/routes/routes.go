@@ -22,7 +22,11 @@ func NewRouter(db *sql.DB) *httprouter.Router {
 	})
 
 	r.GET("/roast/:id", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		roast.NewRoastSession(p.ByName("id"), &w, db)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Content-Type", "text/event-stream")
+		roast.NewRoastSession(p.ByName("id"), w, r, db)
 	})
 
 	return r
