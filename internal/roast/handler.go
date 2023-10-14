@@ -11,16 +11,19 @@ import (
 
 func NewRoastSession(rs string, w *http.ResponseWriter, db *sql.DB) {
 	// check if there is already a session,
-	var id int
-	row := db.QueryRow("SELECT id FROM active_session WHERE id = $1", rs)
+	var sessionState Session
+	row := db.QueryRow("SELECT id, state FROM active_session WHERE id = $1", rs)
 
-	row.Scan(&id)
-	fmt.Printf("Session id: %d", id)
+	row.Scan(&sessionState.Id, &sessionState.State)
 
-	if fmt.Sprintf("%d", id) == rs {
+	if (fmt.Sprintf("%d", sessionState.Id) == rs) && (sessionState.State == 1) {
 		http.Error(*w, "session already started", 400)
 		return
 	}
+
+	db.Exec("INSERT INTO active_session (id, state) VALUES ($1, $2)", rs, 1)
+
+	fmt.Printf("Session created with id: %s\n", rs)
 
 	clientOptions := mqtt.NewClientOptions().AddBroker("tcp://broker.hivemq.com:1883")
 	client := mqtt.NewClient(clientOptions)
@@ -34,10 +37,9 @@ func NewRoastSession(rs string, w *http.ResponseWriter, db *sql.DB) {
 	topic := fmt.Sprintf("tes_deh/benar/%s", rs)
 
 	go func() {
-		db.Exec("INSERT INTO active_session (id, state) VALUES ($1, $2)", rs, 1)
-		sub := client.Subscribe(topic, 1, roastCallback).Wait()
+		sub := client.Subscribe(topic, 1, roastCb(db, &rs)).Wait()
 		if !sub {
-			fmt.Fprint(*w, "can not Subscribe")
+			fmt.Fprint(*w, "can not subscribe")
 			return
 		}
 
@@ -49,13 +51,21 @@ func NewRoastSession(rs string, w *http.ResponseWriter, db *sql.DB) {
 	fmt.Fprint(*w, "Roasting session created")
 }
 
-var roastCallback mqtt.MessageHandler = func(c mqtt.Client, m mqtt.Message) {
-	msg := fmt.Sprintf("%s", m.Payload())
-	if msg == "-1" {
-		c.Disconnect(1000)
-		return
+func roastCb(db *sql.DB, rs *string) mqtt.MessageHandler {
+	return func(c mqtt.Client, m mqtt.Message) {
+		msg := fmt.Sprintf("%s", m.Payload())
+		if msg == "-1" {
+			_, e := db.Exec("DELETE FROM active_session WHERE id = $1", *rs)
+
+			if e != nil {
+				fmt.Printf("Error occured: %s", e.Error())
+			}
+
+			c.Disconnect(1000)
+			return
+		}
+		fmt.Printf("Received message: %s from topic: %s\n", m.Payload(), m.Topic())
 	}
-	fmt.Printf("Received message: %s from topic: %s\n", m.Payload(), m.Topic())
 }
 
 type Session struct {
