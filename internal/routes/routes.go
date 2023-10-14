@@ -6,8 +6,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/dandyZicky/v2-project/internal/roast"
-	"github.com/dandyZicky/v2-project/internal/user"
+	"github.com/smart-roast/backend/internal/roast"
+	"github.com/smart-roast/backend/internal/user"
 )
 
 func NewRouter(db *sql.DB) *httprouter.Router {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/dandyZicky/v2-project/internal/db"
-	"github.com/dandyZicky/v2-project/internal/routes"
+	"github.com/smart-roast/backend/internal/db"
+	"github.com/smart-roast/backend/internal/routes"
 )
 
 func main() {
@@ -15,7 +15,6 @@ func main() {
 
 	cs := "user=postgres dbname=test password=;"
 	db, err := db.Db(&cs)
-
 	if err != nil {
 		panic(err.Error())
 	}

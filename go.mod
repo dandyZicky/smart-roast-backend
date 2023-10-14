@@ -1,4 +1,4 @@
-module github.com/dandyZicky/v2-project
+module github.com/smart-roast/backend
 
 go 1.21.2
 
