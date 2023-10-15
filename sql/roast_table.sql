@@ -15,7 +15,7 @@ CREATE TABLE roast_sessions (
 );
 
 CREATE TABLE session_measurements (
-  session_id INTEGER PRIMARY KEY REFERENCES roast_sessions(id),
+  session_id INTEGER REFERENCES roast_sessions(id),
   suhu DOUBLE PRECISION
 );
 

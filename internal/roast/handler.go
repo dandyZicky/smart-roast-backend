@@ -17,32 +17,58 @@ func NewRoastSession(
 ) {
 	// check if there is already a session,
 	var sessionState Session
-	row := db.QueryRow("SELECT id, state FROM active_session WHERE id = $1", rs)
+	row := db.QueryRow(`SELECT id, state FROM active_session WHERE id = $1`, rs)
 
-	row.Scan(&sessionState.Id, &sessionState.State)
+	err := row.Scan(&sessionState.Id, &sessionState.State)
 
 	if (fmt.Sprintf("%d", sessionState.Id) == rs) && (sessionState.State == 1) {
 		http.Error(w, "session already started", 400)
 		return
 	}
 
-	db.Exec("INSERT INTO active_session (id, state) VALUES ($1, $2)", rs, 1)
-
-	fmt.Printf("Session created with id: %s\n", rs)
-
 	clientOptions := mqtt.NewClientOptions().AddBroker("tcp://broker.hivemq.com:1883")
 	client := mqtt.NewClient(clientOptions)
 
-	con := client.Connect().Wait()
-	if !con {
-		fmt.Fprint(w, "connection failed to broker")
+	if !client.Connect().WaitTimeout(time.Second * 20) {
+		fmt.Fprint(w, "Took to long to connect to broker")
 		return
 	}
 
-	topic := fmt.Sprintf("tes_deh/benar/%s", rs)
+	defer client.Disconnect(1000)
+
+	_, err = db.Exec(`INSERT INTO active_session (id, state) VALUES ($1, $2)`, rs, 1)
+	if err != nil {
+		http.Error(w, "cannot create roasting session", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: roaster_id acquired from Request
+	// WARN: roast_session IS DIFFERENT from active_session, hence different ids
+
+	// store roast_session.id
+	var rsId int
+	err = db.QueryRow(
+		`INSERT INTO roast_sessions (roaster_id, user_id, roast_date) values ($1, $2, $3) RETURNING id`,
+		1,
+		1,
+		time.Now(),
+	).Scan(&rsId)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+	}
+
+	fmt.Printf("Active session id: %s\n", rs)
+	fmt.Printf("Recorded session id: %d\n", rsId)
+
+	stmt, err := db.Prepare(`INSERT INTO session_measurements (session_id, suhu) VALUES ($1, $2)`)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+	}
 
 	var mqttWait bool = true
-	sub := client.Subscribe(topic, 1, roastCb(db, &rs, w, &mqttWait)).Wait()
+	topic := fmt.Sprintf("tes_deh/benar/%s", rs)
+	sub := client.Subscribe(topic, 1, roastCb(db, stmt, &rs, &rsId, w, &mqttWait)).Wait()
 	if !sub {
 		http.Error(w, "can not subscribe", 400)
 		return
@@ -56,15 +82,22 @@ func NewRoastSession(
 	}
 
 	fmt.Fprintln(w, "Session complete")
-	db.Exec("DELETE FROM active_session WHERE id = $1", rs)
+	db.Exec(`DELETE FROM active_session WHERE id = $1`, rs)
 	return
 }
 
-func roastCb(db *sql.DB, rs *string, w http.ResponseWriter, state *bool) mqtt.MessageHandler {
+func roastCb(
+	db *sql.DB,
+	stmt *sql.Stmt,
+	rs *string,
+	rsId *int,
+	w http.ResponseWriter,
+	state *bool,
+) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		msg := fmt.Sprintf("%s", m.Payload())
 		if msg == "-1" {
-			_, e := db.Exec("DELETE FROM active_session WHERE id = $1", *rs)
+			_, e := db.Exec(`DELETE FROM active_session WHERE id = $1`, *rs)
 			*state = false
 
 			if e != nil {
@@ -76,6 +109,11 @@ func roastCb(db *sql.DB, rs *string, w http.ResponseWriter, state *bool) mqtt.Me
 		}
 		fmt.Fprintf(w, `{"suhu": %s}`, m.Payload())
 		w.(http.Flusher).Flush()
+		_, err := stmt.Exec(*rsId, 120.32)
+		if err != nil {
+			fmt.Fprint(w, err.Error())
+			w.(http.Flusher).Flush()
+		}
 	}
 }
 
