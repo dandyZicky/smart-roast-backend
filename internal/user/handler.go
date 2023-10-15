@@ -16,10 +16,10 @@ func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *s
 	}
 	defer rows.Close()
 
-	var result []User
+	var result []UserSafe
 
 	for rows.Next() {
-		each := User{}
+		each := UserSafe{}
 		err := rows.Scan(&each.Name, &each.Email)
 		if err != nil {
 			panic(err.Error())
@@ -42,7 +42,7 @@ func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *s
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db *sql.DB) {
-	var u RegisteredUser
+	var u User
 
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
@@ -55,7 +55,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 	err = row.Scan(&u.Email)
 
 	if err == nil {
-		http.Error(w, "Email already exist", 400)
+		http.Error(w, "Bad email", 400)
 		return
 	}
 
@@ -71,23 +71,19 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
-
-	jsonResult, err := json.Marshal(u)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-	}
-
-	fmt.Fprintf(w, string(jsonResult))
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(""))
 }
 
 type User struct {
+	ID       int64  `json:"id"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Salt     string `json:"salt"`
 }
 
-type RegisteredUser struct {
-	ID int64 `json:"id"`
-	User
-	Salt string `json:"salt"`
+type UserSafe struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
