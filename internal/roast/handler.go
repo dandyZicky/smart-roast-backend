@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -107,9 +108,12 @@ func roastCb(
 			c.Disconnect(1000)
 			return
 		}
-		fmt.Fprintf(w, `{"suhu": %s}`, m.Payload())
+		s := string(m.Payload())
+		suhu, _ := strconv.ParseFloat(s, 64)
+		fmt.Fprintf(w, `{"suhu": %f}`, suhu)
 		w.(http.Flusher).Flush()
-		_, err := stmt.Exec(*rsId, 120.32)
+		// TODO: Probably use async (goroutine)
+		_, err := stmt.Exec(*rsId, suhu)
 		if err != nil {
 			fmt.Fprint(w, err.Error())
 			w.(http.Flusher).Flush()
