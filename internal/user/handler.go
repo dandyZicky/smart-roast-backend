@@ -52,9 +52,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 
 	row := db.QueryRow("SELECT email FROM users WHERE email = $1", u.Email)
 
-	var email string
-
-	err = row.Scan(&email)
+	err = row.Scan(&u.Email)
 
 	if err == nil {
 		http.Error(w, "Email already exist", 400)
@@ -65,20 +63,18 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 	u.Salt = "C$^^V$7gy645y6f44#Y"
 	u.Password += u.Salt
 
-	jsonResult, err := json.Marshal(u)
+	insertQuery := `INSERT INTO users (name, email, password, salt) VALUES ($1, $2, $3, $4) RETURNING id`
+
+	row = db.QueryRow(insertQuery, u.Name, u.Email, u.Password, u.Salt)
+
+	err = row.Scan(&u.ID)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
 
-	insertQuery := `
-  INSERT INTO users (name, email, password, salt) 
-  VALUES ($1, $2, $3, $4)`
-
-	_, e := db.Exec(insertQuery, u.Name, u.Email, u.Password, u.Salt)
-
-	if e != nil {
-		http.Error(w, e.Error(), 400)
-		return
+	jsonResult, err := json.Marshal(u)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
 	}
 
 	fmt.Fprintf(w, string(jsonResult))
@@ -91,7 +87,7 @@ type User struct {
 }
 
 type RegisteredUser struct {
-	ID uint16 `json:"id"`
+	ID int64 `json:"id"`
 	User
 	Salt string `json:"salt"`
 }
