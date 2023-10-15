@@ -10,6 +10,7 @@ CREATE TABLE roasters (
 CREATE TABLE roast_sessions (
   id BIGSERIAL PRIMARY KEY,
   roaster_id INTEGER REFERENCES roasters(id),
+  user_id INTEGER REFERENCES users(id),
   roast_date timestamp NOT NULL
 );
 

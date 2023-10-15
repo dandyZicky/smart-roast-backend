@@ -10,7 +10,7 @@ import (
 )
 
 func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *sql.DB) {
-	rows, err := db.Query("SELECT name, email FROM mock_user_v2")
+	rows, err := db.Query("SELECT name, email FROM users")
 	if err != nil {
 		panic("Query failed")
 	}
@@ -19,9 +19,8 @@ func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *s
 	var result []User
 
 	for rows.Next() {
-		var each = User{}
-		var err = rows.Scan(&each.Name, &each.Email)
-
+		each := User{}
+		err := rows.Scan(&each.Name, &each.Email)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -51,7 +50,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 		return
 	}
 
-	row := db.QueryRow("SELECT email FROM mock_user_v2 WHERE email = $1", u.Email)
+	row := db.QueryRow("SELECT email FROM users WHERE email = $1", u.Email)
 
 	var email string
 
@@ -67,13 +66,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 	u.Password += u.Salt
 
 	jsonResult, err := json.Marshal(u)
-
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
 
 	insertQuery := `
-  INSERT INTO mock_user_v2 (name, email, password, salt) 
+  INSERT INTO users (name, email, password, salt) 
   VALUES ($1, $2, $3, $4)`
 
 	_, e := db.Exec(insertQuery, u.Name, u.Email, u.Password, u.Salt)
