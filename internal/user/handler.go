@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/julienschmidt/httprouter"
 )
 
 func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *sql.DB) {
-	rows, err := db.Query("SELECT name, email FROM users")
+	rows, err := db.Query(`SELECT name, email FROM users`)
 	if err != nil {
 		panic("Query failed")
 	}
@@ -50,7 +51,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 		return
 	}
 
-	row := db.QueryRow("SELECT email FROM users WHERE email = $1", u.Email)
+	if !isEmailValid(&u.Email) {
+		http.Error(w, "Invalid email form", http.StatusBadRequest)
+		return
+	}
+
+	row := db.QueryRow(`SELECT email FROM users WHERE email = $1`, u.Email)
 
 	err = row.Scan(&u.Email)
 
@@ -73,6 +79,11 @@ func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db 
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(""))
+}
+
+func isEmailValid(s *string) bool {
+	re := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return re.MatchString(*s)
 }
 
 type User struct {
