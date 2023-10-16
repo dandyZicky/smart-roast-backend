@@ -8,7 +8,6 @@ import (
 
 func Db(cs *string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", *cs)
-
 	if err != nil {
 		return nil, err
 	}

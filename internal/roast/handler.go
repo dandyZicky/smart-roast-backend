@@ -3,6 +3,7 @@ package roast
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -59,8 +60,8 @@ func NewRoastSession(
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
 
-	fmt.Printf("Active session id: %s\n", rs)
-	fmt.Printf("Recorded session id: %d\n", rsId)
+	log.Printf("Active session id: %s\n", rs)
+	log.Printf("Recorded session id: %d\n", rsId)
 
 	stmt, err := db.Prepare(`INSERT INTO session_measurements (session_id, suhu) VALUES ($1, $2)`)
 	if err != nil {
@@ -102,7 +103,7 @@ func roastCb(
 			*state = false
 
 			if e != nil {
-				fmt.Printf("Error occured: %s", e.Error())
+				log.Printf("Error occured: %s", e.Error())
 			}
 
 			c.Disconnect(1000)
