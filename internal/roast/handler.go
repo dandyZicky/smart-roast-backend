@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -90,10 +89,9 @@ func NewRoastSession(
 		}
 	}()
 
-	fmt.Fprint(w, "{message: `initialized connection`}")
-	w.(http.Flusher).Flush()
 	wg.Wait()
-	fmt.Fprintln(w, "Session complete")
+	fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf(`{"suhu": %s}`, "-404.404"))
+	w.(http.Flusher).Flush()
 	db.Exec(`DELETE FROM active_session WHERE id = $1`, rs)
 	return
 }
@@ -123,13 +121,12 @@ func roastCb(
 			return
 		}
 		s := string(m.Payload())
-		suhu, _ := strconv.ParseFloat(s, 64)
-		fmt.Fprintf(w, `{"suhu": %f}`, suhu)
+		fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf(`{"suhu": %s}`, s))
 		w.(http.Flusher).Flush()
 		// TODO: Probably use async (goroutine)
-		_, err := stmt.Exec(*rsId, suhu)
+		_, err := stmt.Exec(*rsId, s)
 		if err != nil {
-			fmt.Fprint(w, err.Error())
+			fmt.Fprintf(w, "data: %s\n\n", err.Error())
 			w.(http.Flusher).Flush()
 		}
 	}
