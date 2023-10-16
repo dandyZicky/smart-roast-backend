@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -68,21 +69,28 @@ func NewRoastSession(
 		http.Error(w, "db error", http.StatusInternalServerError)
 	}
 
-	var mqttWait bool = true
+	mqttWait := make(chan SubscriberWait, 1)
 	topic := fmt.Sprintf("tes_deh/benar/%s", rs)
-	sub := client.Subscribe(topic, 1, roastCb(db, stmt, &rs, &rsId, w, &mqttWait)).Wait()
+
+	sub := client.Subscribe(topic, 1, roastCb(db, stmt, &rs, &rsId, w, mqttWait)).Wait()
 	if !sub {
 		http.Error(w, "can not subscribe", 400)
 		return
 	}
 
-	fmt.Fprint(w, "{message: `init connection`}")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case msg := <-mqttWait:
+			log.Printf("ROAST: %d, DONE", msg.SessionId)
+		}
+	}()
+
+	fmt.Fprint(w, "{message: `initialized connection`}")
 	w.(http.Flusher).Flush()
-
-	for mqttWait {
-		time.Sleep(time.Millisecond)
-	}
-
+	wg.Wait()
 	fmt.Fprintln(w, "Session complete")
 	db.Exec(`DELETE FROM active_session WHERE id = $1`, rs)
 	return
@@ -94,13 +102,16 @@ func roastCb(
 	rs *string,
 	rsId *int,
 	w http.ResponseWriter,
-	state *bool,
+	state chan SubscriberWait,
 ) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
 		msg := fmt.Sprintf("%s", m.Payload())
 		if msg == "-1" {
 			_, e := db.Exec(`DELETE FROM active_session WHERE id = $1`, *rs)
-			*state = false
+			state <- SubscriberWait{
+				SessionId: *rsId,
+				RoastDone: true,
+			}
 
 			if e != nil {
 				log.Printf("Error occured: %s", e.Error())
@@ -125,4 +136,9 @@ func roastCb(
 type Session struct {
 	Id    int `json:"id"`
 	State int `json:"state"`
+}
+
+type SubscriberWait struct {
+	SessionId int
+	RoastDone bool
 }
