@@ -81,10 +81,12 @@ func NewRoastSession(
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		select {
 		case msg := <-mqttWait:
-			log.Printf("ROAST: %d, DONE", msg.SessionId)
+			if msg.RoastDone {
+				log.Printf("ROAST: %d, DONE", msg.SessionId)
+				wg.Done()
+			}
 		}
 	}()
 
