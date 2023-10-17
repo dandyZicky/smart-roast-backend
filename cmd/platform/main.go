@@ -4,21 +4,49 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 
 	"github.com/smart-roast/backend/internal/db"
 	"github.com/smart-roast/backend/internal/routes"
 )
 
 func main() {
-	h := "127.0.0.1"
-	p := 3000
-	addr := fmt.Sprintf("%s:%d", h, p)
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	h := os.Getenv("SERVER_HOST_URL")
+	p := os.Getenv("SERVER_HOST_PORT")
+	addr := fmt.Sprintf("%s:%s", h, p)
+
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASS")
 
 	log.Println("Connecting to database...")
-	cs := "user=postgres dbname=test password=;"
-	db, err := db.Db(&cs)
+	var cs string
+
+	if os.Getenv("PROD") == "true" {
+		cs = os.Getenv("CONN_STR")
+	} else {
+		cs = fmt.Sprintf(
+			"host=%s port=%s user=%s dbname=%s password=%s",
+			dbHost,
+			dbPort,
+			dbUser,
+			dbName,
+			dbPass,
+		)
+	}
+
+	db, err := db.Db(&cs, "postgres")
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatalf("DBERR => %s", err.Error())
 	}
 	defer db.Close()
 

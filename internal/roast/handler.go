@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -28,7 +29,7 @@ func NewRoastSession(
 		return
 	}
 
-	clientOptions := mqtt.NewClientOptions().AddBroker("tcp://broker.hivemq.com:1883")
+	clientOptions := mqtt.NewClientOptions().AddBroker(os.Getenv("MQTT_BROKER"))
 	client := mqtt.NewClient(clientOptions)
 
 	if !client.Connect().WaitTimeout(time.Second * 20) {
@@ -76,6 +77,9 @@ func NewRoastSession(
 		http.Error(w, "can not subscribe", 400)
 		return
 	}
+
+	fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf(`{"status": %s}`, "200"))
+	w.(http.Flusher).Flush()
 
 	var wg sync.WaitGroup
 	wg.Add(1)

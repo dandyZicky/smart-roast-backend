@@ -6,8 +6,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func Db(cs *string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", *cs)
+func Db(cs *string, driverName string) (*sql.DB, error) {
+	db, err := sql.Open(driverName, *cs)
 	if err != nil {
 		return nil, err
 	}

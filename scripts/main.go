@@ -4,14 +4,21 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	cO := mqtt.NewClientOptions().AddBroker("tcp://broker.hivemq.com:1883")
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	cO := mqtt.NewClientOptions().AddBroker(os.Getenv("MQTT_BROKER"))
 	client := mqtt.NewClient(cO)
 
 	if !client.Connect().WaitTimeout(time.Second * 20) {
@@ -39,7 +46,7 @@ func main() {
 			maxValue := 130.0
 
 			// Define the number of data points to generate
-			numDataPoints := 100
+			numDataPoints := 20
 
 			// Initialize variables for the mean and the increment
 			mean := (minValue + maxValue) / 2.0
@@ -55,7 +62,7 @@ func main() {
 				}
 				log.Printf("Published to topic: %s, payload: %f\n", topic, f)
 
-				time.Sleep(time.Millisecond * 100)
+				time.Sleep(time.Millisecond * 500)
 			}
 
 			client.Publish(topic, 2, false, "-1")
