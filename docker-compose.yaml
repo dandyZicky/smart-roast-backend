@@ -1,0 +1,13 @@
+version: '3.8'
+  
+services:
+  app:
+    image: smart-roast-backend:v1
+    container_name: sm_backend
+    environment:
+      - PROD_ENV_FILE=.env.prod
+    network_mode: host
+    ports:
+      - "5432:5432"
+      - "3000:3000"
+    
