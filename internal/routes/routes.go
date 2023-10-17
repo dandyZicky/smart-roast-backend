@@ -2,6 +2,7 @@ package routes
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -19,6 +20,14 @@ func NewRouter(db *sql.DB) *httprouter.Router {
 
 	r.POST("/user", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		user.CreateUser(w, r, p, db)
+	})
+
+	r.GET("/roast", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		res, err := roast.GetRoastSessions(db)
+		if err != nil {
+			http.Error(w, "Query failed", 400)
+		}
+		fmt.Fprintln(w, res)
 	})
 
 	r.GET("/roast/:id", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {

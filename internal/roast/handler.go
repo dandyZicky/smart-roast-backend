@@ -2,6 +2,7 @@ package roast
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -136,6 +137,37 @@ func roastCb(
 	}
 }
 
+func GetRoastSessions(db *sql.DB) (string, error) {
+	stmt := ("SELECT * FROM session_measurements ORDER BY session_id ASC")
+
+	rows, err := db.Query(stmt)
+	if err != nil {
+		log.Fatalf("WARN => query failed: %s", err.Error())
+	}
+
+	defer rows.Close()
+
+	sessions := []MeasurementSession{}
+
+	for rows.Next() {
+		session := MeasurementSession{}
+
+		if err = rows.Scan(&session.SessionId, &session.Suhu); err != nil {
+			return "", err
+		}
+		sessions = append(sessions, session)
+	}
+
+	if err = rows.Err(); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(sessions)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	return string(data), nil
+}
+
 type Session struct {
 	Id    int `json:"id"`
 	State int `json:"state"`
@@ -144,4 +176,9 @@ type Session struct {
 type SubscriberWait struct {
 	SessionId int
 	RoastDone bool
+}
+
+type MeasurementSession struct {
+	SessionId int     `json:"session_id"`
+	Suhu      float64 `json:"suhu"`
 }

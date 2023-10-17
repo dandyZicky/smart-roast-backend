@@ -22,18 +22,20 @@ func main() {
 	p := os.Getenv("SERVER_HOST_PORT")
 	addr := fmt.Sprintf("%s:%s", h, p)
 
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbName := os.Getenv("DB_NAME")
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASS")
-
 	log.Println("Connecting to database...")
 	var cs string
 
 	if os.Getenv("PROD") == "true" {
+		log.Println("DB: PROD")
 		cs = os.Getenv("CONN_STR")
 	} else {
+		dbHost := os.Getenv("DB_HOST")
+		dbPort := os.Getenv("DB_PORT")
+		dbName := os.Getenv("DB_NAME")
+		dbUser := os.Getenv("DB_USER")
+		dbPass := os.Getenv("DB_PASS")
+
+		log.Println("DB: DEV")
 		cs = fmt.Sprintf(
 			"host=%s port=%s user=%s dbname=%s password=%s",
 			dbHost,
