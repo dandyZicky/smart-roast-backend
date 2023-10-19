@@ -13,14 +13,20 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
 	h := os.Getenv("SERVER_HOST_URL")
 	p := os.Getenv("SERVER_HOST_PORT")
 	addr := fmt.Sprintf("%s:%s", h, p)
+
+	if h == "" {
+		log.Println("No environment variables found, trying to read .env file")
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal(".env file not found")
+		}
+		h = os.Getenv("SERVER_HOST_URL")
+		p = os.Getenv("SERVER_HOST_PORT")
+		addr = fmt.Sprintf("%s:%s", h, p)
+	}
 
 	log.Println("Connecting to database...")
 	var cs string
