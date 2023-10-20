@@ -138,7 +138,7 @@ func roastCb(
 }
 
 func GetRoastSessions(db *sql.DB) (string, error) {
-	stmt := ("SELECT * FROM session_measurements ORDER BY session_id ASC")
+	stmt := ("SELECT * FROM session_measurements ORDER BY session_id DESC")
 
 	rows, err := db.Query(stmt)
 	if err != nil {
