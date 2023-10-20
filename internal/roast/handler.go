@@ -3,6 +3,7 @@ package roast
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 
 func NewRoastSession(
 	rs string,
+	roasterId string,
 	w http.ResponseWriter,
 	r *http.Request,
 	db *sql.DB,
@@ -46,6 +48,8 @@ func NewRoastSession(
 		return
 	}
 
+	log.Printf("Active session id: %s\n", rs)
+
 	// TODO: roaster_id acquired from Request
 	// WARN: roast_session IS DIFFERENT from active_session, hence different ids
 
@@ -53,16 +57,18 @@ func NewRoastSession(
 	var rsId int
 	err = db.QueryRow(
 		`INSERT INTO roast_sessions (roaster_id, user_id, roast_date) values ($1, $2, $3) RETURNING id`,
-		1,
-		1,
+		roasterId,
+		rs,
 		time.Now(),
 	).Scan(&rsId)
 
 	if err != nil {
+		db.Exec(`DELETE FROM active_session WHERE id = $1`, rs)
+		log.Printf("Active session id: %s aborted", rs)
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
 	}
 
-	log.Printf("Active session id: %s\n", rs)
 	log.Printf("Recorded session id: %d\n", rsId)
 
 	stmt, err := db.Prepare(`INSERT INTO session_measurements (session_id, suhu) VALUES ($1, $2)`)
@@ -137,22 +143,23 @@ func roastCb(
 	}
 }
 
-func GetRoastSessions(db *sql.DB) (string, error) {
-	stmt := ("SELECT * FROM session_measurements ORDER BY session_id DESC")
+func GetRoastSessions(db *sql.DB, userId string) (string, error) {
+	stmt := "SELECT rs.id, roaster_id, user_id, roast_date FROM roast_sessions rs LEFT JOIN users u ON rs.user_id = u.id WHERE u.id = $1"
 
-	rows, err := db.Query(stmt)
+	rows, err := db.Query(stmt, userId)
 	if err != nil {
+		log.Printf("user_id: %s", userId)
 		log.Fatalf("WARN => query failed: %s", err.Error())
 	}
 
 	defer rows.Close()
 
-	sessions := []MeasurementSession{}
+	sessions := []RoastSession{}
 
 	for rows.Next() {
-		session := MeasurementSession{}
+		session := RoastSession{}
 
-		if err = rows.Scan(&session.SessionId, &session.Suhu); err != nil {
+		if err = rows.Scan(&session.Id, &session.RoasterId, &session.UserId, &session.Timestamp); err != nil {
 			return "", err
 		}
 		sessions = append(sessions, session)
@@ -168,6 +175,42 @@ func GetRoastSessions(db *sql.DB) (string, error) {
 	return string(data), nil
 }
 
+func GetMeasurements(db *sql.DB, sessionId string) (string, error) {
+	stmt := "SELECT session_id, suhu FROM session_measurements WHERE session_id = $1"
+
+	rows, err := db.Query(stmt, sessionId)
+	if err != nil {
+		log.Printf("WARN => query failed: %s", err.Error())
+		return "", err
+	}
+
+	defer rows.Close()
+
+	measurements := []MeasurementSession{}
+
+	for rows.Next() {
+		measurement := MeasurementSession{}
+
+		if err = rows.Scan(&measurement.SessionId, &measurement.Suhu); err != nil {
+			return "", err
+		}
+		measurements = append(measurements, measurement)
+	}
+
+	if len(measurements) == 0 {
+		return "", errors.New("No measurement found")
+	}
+
+	if err = rows.Err(); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(measurements)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	return string(data), nil
+}
+
 type Session struct {
 	Id    int `json:"id"`
 	State int `json:"state"`
@@ -176,6 +219,13 @@ type Session struct {
 type SubscriberWait struct {
 	SessionId int
 	RoastDone bool
+}
+
+type RoastSession struct {
+	Id        uint16    `json:"id"`
+	RoasterId uint16    `json:"roaster_id"`
+	UserId    uint16    `json:"user_id"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type MeasurementSession struct {
