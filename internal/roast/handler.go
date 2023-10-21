@@ -165,6 +165,10 @@ func GetRoastSessions(db *sql.DB, userId string) (string, error) {
 		sessions = append(sessions, session)
 	}
 
+	if len(sessions) == 0 {
+		return "", errors.New("No sessions found")
+	}
+
 	if err = rows.Err(); err != nil {
 		return "", err
 	}
