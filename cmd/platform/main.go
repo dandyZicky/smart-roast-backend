@@ -67,6 +67,8 @@ func main() {
 		"rediss://default:dcf31d2bc0914de991925e876f529193@profound-escargot-39586.upstash.io:39586",
 	)
 	client := redis.NewClient(opt)
+	defer client.Close()
+	log.Println("Redis connected")
 
 	r := routes.NewRouter(db, client, &ctx)
 
