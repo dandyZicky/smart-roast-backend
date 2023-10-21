@@ -46,7 +46,7 @@ func main() {
 			maxValue := 130.0
 
 			// Define the number of data points to generate
-			numDataPoints := 20
+			numDataPoints := 20 * 6 * 5
 
 			// Initialize variables for the mean and the increment
 			mean := (minValue + maxValue) / 2.0
