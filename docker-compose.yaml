@@ -2,7 +2,7 @@ version: '3.8'
   
 services:
   app:
-    image: smart-roast-backend:v1.1
+    image: smart-roast-backend:v1.2
     container_name: sm_backend
     env_file:
       - .env.prod
