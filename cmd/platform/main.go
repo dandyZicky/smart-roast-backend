@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/smart-roast/backend/internal/db"
 	"github.com/smart-roast/backend/internal/routes"
@@ -60,7 +62,13 @@ func main() {
 
 	log.Println("DB connection is set")
 
-	r := routes.NewRouter(db)
+	ctx := context.Background()
+	opt, _ := redis.ParseURL(
+		"rediss://default:dcf31d2bc0914de991925e876f529193@profound-escargot-39586.upstash.io:39586",
+	)
+	client := redis.NewClient(opt)
+
+	r := routes.NewRouter(db, client, &ctx)
 
 	log.Printf("Listening on address: %s\n", addr)
 	e := http.ListenAndServe(addr, r)

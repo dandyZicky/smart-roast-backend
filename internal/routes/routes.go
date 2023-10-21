@@ -1,17 +1,19 @@
 package routes
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/smart-roast/backend/internal/roast"
 	"github.com/smart-roast/backend/internal/user"
 )
 
-func NewRouter(db *sql.DB) *httprouter.Router {
+func NewRouter(db *sql.DB, client *redis.Client, ctx *context.Context) *httprouter.Router {
 	r := httprouter.New()
 
 	r.GET("/user", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -20,6 +22,10 @@ func NewRouter(db *sql.DB) *httprouter.Router {
 
 	r.POST("/user", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		user.CreateUser(w, r, p, db)
+	})
+
+	r.GET("/user/:id", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		user.Getuser(w, r, p, db, client, ctx)
 	})
 
 	r.GET(

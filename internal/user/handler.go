@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/redis/go-redis/v9"
 )
 
 func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *sql.DB) {
@@ -40,6 +42,45 @@ func GetUsers(w http.ResponseWriter, _ *http.Request, _ httprouter.Params, db *s
 	}
 
 	fmt.Fprintf(w, "%s", string(jsonResult))
+}
+
+func Getuser(
+	w http.ResponseWriter,
+	r *http.Request,
+	p httprouter.Params,
+	db *sql.DB,
+	client *redis.Client,
+	ctx *context.Context,
+) {
+	id := p.ByName("id")
+
+	var u UserSafe
+
+	if data := client.Get(*ctx, fmt.Sprintf("userId_%s", id)).Val(); len(data) != 0 {
+		fmt.Fprint(w, data)
+		return
+	}
+
+	row := db.QueryRow(`SELECT name, email FROM users WHERE id = $1`, id)
+
+	err := row.Scan(&u.Name, &u.Email)
+	if err != nil {
+		http.Error(w, "Query error", 400)
+		return
+	}
+
+	if u.Name == "" {
+		http.Error(w, "User not found", 400)
+		return
+	}
+
+	data, err := json.Marshal(u)
+	if err != nil {
+		http.Error(w, "Schema error", 400)
+	}
+
+	fmt.Fprint(w, string(data))
+	client.Set(*ctx, fmt.Sprintf("userId_%s", id), string(data), 0)
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params, db *sql.DB) {
