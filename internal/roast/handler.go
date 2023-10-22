@@ -180,7 +180,7 @@ func GetRoastSessions(db *sql.DB, userId string) (string, error) {
 }
 
 func GetMeasurements(db *sql.DB, sessionId string) (string, error) {
-	stmt := "SELECT session_id, suhu FROM session_measurements WHERE session_id = $1"
+	stmt := "SELECT session_id, suhu, timestamp FROM session_measurements WHERE session_id = $1"
 
 	rows, err := db.Query(stmt, sessionId)
 	if err != nil {
@@ -195,7 +195,7 @@ func GetMeasurements(db *sql.DB, sessionId string) (string, error) {
 	for rows.Next() {
 		measurement := MeasurementSession{}
 
-		if err = rows.Scan(&measurement.SessionId, &measurement.Suhu); err != nil {
+		if err = rows.Scan(&measurement.SessionId, &measurement.Suhu, &measurement.Timestamp); err != nil {
 			return "", err
 		}
 		measurements = append(measurements, measurement)
@@ -233,6 +233,7 @@ type RoastSession struct {
 }
 
 type MeasurementSession struct {
-	SessionId int     `json:"session_id"`
-	Suhu      float64 `json:"suhu"`
+	SessionId int       `json:"session_id"`
+	Suhu      float64   `json:"suhu"`
+	Timestamp time.Time `json:"timestamp"`
 }

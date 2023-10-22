@@ -12,6 +12,7 @@ RUN go mod tidy
 RUN go build -o /go/bin/smart-roast cmd/platform/main.go
 
 FROM alpine:latest
+ENV TZ="Asia/Jakarta"
 COPY --from=builder /go/bin/smart-roast /go/bin/smart-roast
 
 EXPOSE 3000

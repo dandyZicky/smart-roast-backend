@@ -16,7 +16,8 @@ CREATE TABLE roast_sessions (
 
 CREATE TABLE session_measurements (
   session_id INTEGER REFERENCES roast_sessions(id),
-  suhu DOUBLE PRECISION
+  suhu DOUBLE PRECISION,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 INSERT INTO roasters (serial_number) VALUES ('f25a87c9-4613-49da-a61d-b16f352441ad')
