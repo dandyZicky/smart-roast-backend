@@ -71,7 +71,9 @@ func NewRoastSession(
 
 	log.Printf("Recorded session id: %d\n", rsId)
 
-	stmt, err := db.Prepare(`INSERT INTO session_measurements (session_id, suhu) VALUES ($1, $2)`)
+	stmt, err := db.Prepare(
+		`INSERT INTO session_measurements (session_id, suhu, timestamp) VALUES ($1, $2, $3)`,
+	)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 	}
@@ -116,7 +118,7 @@ func roastCb(
 	state chan SubscriberWait,
 ) mqtt.MessageHandler {
 	return func(c mqtt.Client, m mqtt.Message) {
-		msg := fmt.Sprintf("%s", m.Payload())
+		msg := string(m.Payload())
 		if msg == "-1" {
 			_, e := db.Exec(`DELETE FROM active_session WHERE id = $1`, *rs)
 			state <- SubscriberWait{
@@ -131,11 +133,23 @@ func roastCb(
 			c.Disconnect(1000)
 			return
 		}
-		s := string(m.Payload())
-		fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf(`{"suhu": %s}`, s))
+		measurement := MeasurementSession{}
+		err := json.Unmarshal(m.Payload(), &measurement)
+		if err != nil {
+			log.Panicln(err.Error())
+			db.Exec("DELETE FROM active_session WHERE id = $1", *rs)
+		}
+
+		ts, _ := measurement.Timestamp.MarshalText()
+
+		fmt.Fprintf(
+			w,
+			"data: %s\n\n",
+			fmt.Sprintf(`{"suhu": %f, "ts": "%s"}`, measurement.Suhu, ts),
+		)
 		w.(http.Flusher).Flush()
 		// TODO: Probably use async (goroutine)
-		_, err := stmt.Exec(*rsId, s)
+		_, err = stmt.Exec(*rsId, measurement.Suhu, measurement.Timestamp)
 		if err != nil {
 			fmt.Fprintf(w, "data: %s\n\n", err.Error())
 			w.(http.Flusher).Flush()

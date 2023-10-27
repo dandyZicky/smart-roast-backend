@@ -9,8 +9,11 @@
 # TODO
 
 ## SQL INSERT
-- [ ] For every new session, generate the variable for roast_sessions_id. To obtain this, first insert roaster_id and roast_date to roast_sessions.
-- [ ] Use roast_sessions_id from the above query and referenced it as session_id when updating session_measurements from mqtt callbacks.
+- [x] For every new session, generate the variable for roast_sessions_id. To obtain this, first insert roaster_id and roast_date to roast_sessions.
+- [x] Use roast_sessions_id from the above query and referenced it as session_id when updating session_measurements from mqtt callbacks.
 
 ## SQL TABLE REVISION
-- [ ] In roast session, there should be a user_id column
+- [x] In roast session, there should be a user_id column
+
+# TODO
+- [ ] CONSIDERATION: should MQTT cb add timestamp in epoch automatically or became part or the mqtt message?

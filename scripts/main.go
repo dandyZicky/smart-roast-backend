@@ -46,7 +46,7 @@ func main() {
 			maxValue := 130.0
 
 			// Define the number of data points to generate
-			numDataPoints := 20 * 6 * 1 / 2
+			numDataPoints := 20 * 1 * 24 / 2
 
 			// Initialize variables for the mean and the increment
 			mean := (minValue + maxValue) / 2.0
@@ -56,7 +56,13 @@ func main() {
 				f := rand.Float64()*(maxValue-minValue) + minValue
 				mean += increment
 				f = (f + mean) / 2.0
-				smthng := client.Publish(topic, 1, false, fmt.Sprintf("%f", f))
+				ts, _ := time.Now().MarshalText()
+				smthng := client.Publish(
+					topic,
+					1,
+					false,
+					fmt.Sprintf(`{"suhu": %f, "timestamp": "%s"}`, f, ts),
+				)
 				if err := smthng.Error(); err != nil {
 					log.Fatalln(err.Error())
 				}
