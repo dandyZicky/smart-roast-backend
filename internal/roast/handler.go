@@ -72,7 +72,7 @@ func NewRoastSession(
 	log.Printf("Recorded session id: %d\n", rsId)
 
 	stmt, err := db.Prepare(
-		`INSERT INTO session_measurements (session_id, suhu, timestamp) VALUES ($1, $2, $3)`,
+		`INSERT INTO session_measurements (session_id,adc_mq135,adc_mq136,adc_mq137,adc_mq138,adc_mq2,adc_mq3,adc_tgs822,adc_tgs2620,timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 	)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
@@ -103,7 +103,7 @@ func NewRoastSession(
 	}()
 
 	wg.Wait()
-	fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf(`{"suhu": %s}`, "-404.404"))
+	fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf(`{"status": %s}`, "-404.404"))
 	w.(http.Flusher).Flush()
 	db.Exec(`DELETE FROM active_session WHERE id = $1`, rs)
 	return
@@ -145,11 +145,38 @@ func roastCb(
 		fmt.Fprintf(
 			w,
 			"data: %s\n\n",
-			fmt.Sprintf(`{"suhu": %f, "ts": "%s"}`, measurement.Suhu, ts),
+			fmt.Sprintf(`{
+				"adc_mq135": %d, 
+				"adc_mq136": %d,
+				"adc_mq137": %d,
+				"adc_mq138": %d,
+				"adc_mq2": %d,
+				"adc_mq3": %d, 
+				"adc_tgs822": %d,
+				"adc_tgs2620": %d,
+				"ts": "%s"}`,
+				measurement.Adc_mq135,
+				measurement.Adc_mq136,
+				measurement.Adc_mq137,
+				measurement.Adc_mq138,
+				measurement.Adc_mq2,
+				measurement.Adc_mq3,
+				measurement.Adc_tgs822,
+				measurement.Adc_tgs2620,
+				ts),
 		)
 		w.(http.Flusher).Flush()
 		// TODO: Probably use async (goroutine)
-		_, err = stmt.Exec(*rsId, measurement.Suhu, measurement.Timestamp)
+		_, err = stmt.Exec(*rsId,
+			measurement.Adc_mq135,
+			measurement.Adc_mq136,
+			measurement.Adc_mq137,
+			measurement.Adc_mq138,
+			measurement.Adc_mq2,
+			measurement.Adc_mq3,
+			measurement.Adc_tgs822,
+			measurement.Adc_tgs2620,
+			ts)
 		if err != nil {
 			fmt.Fprintf(w, "data: %s\n\n", err.Error())
 			w.(http.Flusher).Flush()
@@ -193,8 +220,28 @@ func GetRoastSessions(db *sql.DB, userId string) (string, error) {
 	return string(data), nil
 }
 
+func InsertRoastMeasurements(db *sql.DB, sessionId string, meas MeasurementSession) (string, error) {
+	_, err := db.Exec(
+		`INSERT INTO session_measurements (session_id,adc_mq135,adc_mq136,adc_mq137,adc_mq138,adc_mq2,adc_mq3,adc_tgs822,adc_tgs2620,timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		sessionId,
+		meas.Adc_mq135,
+		meas.Adc_mq136,
+		meas.Adc_mq137,
+		meas.Adc_mq138,
+		meas.Adc_mq2,
+		meas.Adc_mq3,
+		meas.Adc_tgs822,
+		meas.Adc_tgs2620,
+		meas.Timestamp,
+	)
+	if err != nil {
+		return "", err
+	}
+	return "", nil
+}
+
 func GetMeasurements(db *sql.DB, sessionId string) (string, error) {
-	stmt := "SELECT session_id, suhu, timestamp FROM session_measurements WHERE session_id = $1"
+	stmt := "SELECT session_id,adc_mq135,adc_mq136,adc_mq137,adc_mq138,adc_mq2,adc_mq3,adc_tgs822,adc_tgs2620,timestamp FROM session_measurements WHERE session_id = $1"
 
 	rows, err := db.Query(stmt, sessionId)
 	if err != nil {
@@ -209,7 +256,16 @@ func GetMeasurements(db *sql.DB, sessionId string) (string, error) {
 	for rows.Next() {
 		measurement := MeasurementSession{}
 
-		if err = rows.Scan(&measurement.SessionId, &measurement.Suhu, &measurement.Timestamp); err != nil {
+		if err = rows.Scan(&measurement.SessionId,
+			&measurement.Timestamp,
+			&measurement.Adc_mq135,
+			&measurement.Adc_mq136,
+			&measurement.Adc_mq137,
+			&measurement.Adc_mq138,
+			&measurement.Adc_mq2,
+			&measurement.Adc_mq3,
+			&measurement.Adc_tgs2620,
+			&measurement.Adc_tgs822); err != nil {
 			return "", err
 		}
 		measurements = append(measurements, measurement)
@@ -227,6 +283,10 @@ func GetMeasurements(db *sql.DB, sessionId string) (string, error) {
 		log.Fatal(err.Error())
 	}
 	return string(data), nil
+}
+
+func StopSession(sessionId string) {
+
 }
 
 type Session struct {
@@ -247,7 +307,14 @@ type RoastSession struct {
 }
 
 type MeasurementSession struct {
-	SessionId int       `json:"session_id"`
-	Suhu      float64   `json:"suhu"`
-	Timestamp time.Time `json:"timestamp"`
+	SessionId   int       `json:"session_id"`
+	Timestamp   time.Time `json:"timestamp"`
+	Adc_mq135   int       `json:"adc_mq135"`
+	Adc_mq136   int       `json:"adc_mq136"`
+	Adc_mq137   int       `json:"adc_mq137"`
+	Adc_mq138   int       `json:"adc_mq138"`
+	Adc_mq2     int       `json:"adc_mq2"`
+	Adc_mq3     int       `json:"adc_mq3"`
+	Adc_tgs822  int       `json:"adc_tgs822"`
+	Adc_tgs2620 int       `json:"adc_tgs2620"`
 }

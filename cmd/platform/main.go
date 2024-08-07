@@ -1,3 +1,5 @@
+// Deprecated test
+
 package main
 
 import (
@@ -54,6 +56,8 @@ func main() {
 		)
 	}
 
+	redisUrl := os.Getenv("REDIS_URL")
+
 	db, err := db.Db(&cs, "postgres")
 	if err != nil {
 		log.Fatalf("DBERR => %s", err.Error())
@@ -64,7 +68,7 @@ func main() {
 
 	ctx := context.Background()
 	opt, _ := redis.ParseURL(
-		"rediss://default:dcf31d2bc0914de991925e876f529193@profound-escargot-39586.upstash.io:39586",
+		redisUrl,
 	)
 	client := redis.NewClient(opt)
 	defer client.Close()
